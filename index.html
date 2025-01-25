@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure Barcode Check System</title>
+    <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f0f4f8;
+        }
+
+        .container {
+            background: #ffffff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        button {
+            padding: 12px 24px;
+            margin: 8px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        #start-scanner {
+            background: #3498db;
+            color: white;
+        }
+
+        #stop-scanner {
+            background: #e74c3c;
+            color: white;
+        }
+
+        #start-scanner:disabled, #stop-scanner:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        #camera-preview {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border: 3px solid #3498db;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .manual-input {
+            margin: 25px 0;
+            text-align: center;
+        }
+
+        #manual-barcode {
+            padding: 12px;
+            width: 300px;
+            border: 2px solid #bdc3c7;
+            border-radius: 6px;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+
+        #check-manual {
+            background: #2ecc71;
+            color: white;
+            padding: 12px 24px;
+        }
+
+        #result {
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+
+        .scanning {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { background-color: #3498db10; }
+            50% { background-color: #3498db30; }
+            100% { background-color: #3498db10; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Product Barcode Scanner</h1>
+        
+        <div class="scanner-controls">
+            <button id="start-scanner">📸 Start Scanner</button>
+            <button id="stop-scanner" disabled>⏹ Stop Scanner</button>
+        </div>
+
+        <div id="scanner-container" style="display: none;">
+            <video id="camera-preview"></video>
+        </div>
+
+        <div class="manual-input">
+            <input type="text" id="manual-barcode" 
+                   placeholder="Enter 13-digit barcode" 
+                   maxlength="13"
+                   pattern="\d*"
+                   oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+            <button id="check-manual" onclick="checkManualBarcode()">✅ Check Manually</button>
+        </div>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        // Configuration - REPLACE WITH YOUR VALUES
+        const API_URL = 'https://script.google.com/macros/s/AKfycbyo3gI7lK8emIfSp1b7Yrtz0EfnKpvheyMqLOgYzQ14jHKGXwc0Vn3pz_sAn_pZqeH17Q/exec';
+        const SCANNER_READERS = ['ean_reader', 'upc_reader', 'code_128_reader'];
+        const SCAN_COOLDOWN = 1000; // 1 second between scans
+
+        let scannerActive = false;
+        let lastScanTimestamp = 0;
+
+        // Initialize barcode scanner
+        function initScanner() {
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: document.querySelector('#camera-preview'),
+                    constraints: {
+                        facingMode: "environment",
+                        focusMode: "continuous"
+                    },
+                    area: {
+                        top: "25%",
+                        right: "25%",
+                        left: "25%",
+                        bottom: "25%"
+                    }
+                },
+                decoder: {
+                    readers: SCANNER_READERS,
+                    debug: {
+                        drawBoundingBox: true,
+                        showFrequency: false,
+                        drawScanline: true,
+                        showPattern: true
+                    }
+                },
+                locator: {
+                    patchSize: "medium",
+                    halfSample: true
+                }
+            }, function(err) {
+                if (err) {
+                    handleScannerError(err);
+                    return;
+                }
+                Quagga.start();
+                document.getElementById('result').classList.add('scanning');
+            });
+        }
+
+        // Handle scanner errors
+        function handleScannerError(err) {
+            console.error('Scanner Error:', err);
+            alert(`Scanner Error: ${err.message || 'Check camera permissions'}`);
+            resetScannerControls();
+        }
+
+        // Handle detected barcodes
+        Quagga.onDetected(function(result) {
+            if (!scannerActive) return;
+            
+            const now = Date.now();
+            if (now - lastScanTimestamp < SCAN_COOLDOWN) return;
+            lastScanTimestamp = now;
+
+            const barcode = result.codeResult.code;
+            if (/^\d+$/.test(barcode)) {
+                checkBarcode(barcode);
+            }
+        });
+
+        // Barcode validation function
+        async function checkBarcode(barcode) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '⌛ Checking...';
+            resultDiv.style.color = '#3498db';
+            resultDiv.style.backgroundColor = '#f0f8ff';
+
+            try {
+                const response = await fetch(`${API_URL}?barcode=${encodeURIComponent(barcode)}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Server Error: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+
+                resultDiv.textContent = data.exists 
+                    ? "⚠️ Product already in database!" 
+                    : "✅ New product - Collect data!";
+                
+                resultDiv.style.color = data.exists ? '#c0392b' : '#27ae60';
+                resultDiv.style.backgroundColor = data.exists ? '#fdedec' : '#e8f6f3';
+
+            } catch (error) {
+                resultDiv.textContent = `Error: ${error.message}`;
+                resultDiv.style.color = '#c0392b';
+                resultDiv.style.backgroundColor = '#fdedec';
+                console.error('Check Error:', error);
+            }
+        }
+
+        // Manual check handler
+        function checkManualBarcode() {
+            const barcode = document.getElementById('manual-barcode').value.trim();
+            if (barcode.length < 12) {
+                showFeedback('⚠️ Barcode too short!', '#f1c40f', '#fcf8e3');
+                return;
+            }
+            checkBarcode(barcode);
+        }
+
+        // Scanner controls
+        document.getElementById('start-scanner').addEventListener('click', function() {
+            scannerActive = true;
+            document.getElementById('scanner-container').style.display = 'block';
+            document.getElementById('stop-scanner').disabled = false;
+            this.disabled = true;
+            initScanner();
+        });
+
+        document.getElementById('stop-scanner').addEventListener('click', function() {
+            scannerActive = false;
+            Quagga.stop();
+            resetScannerControls();
+        });
+
+        // Reset scanner UI
+        function resetScannerControls() {
+            document.getElementById('scanner-container').style.display = 'none';
+            document.getElementById('start-scanner').disabled = false;
+            document.getElementById('stop-scanner').disabled = true;
+            document.getElementById('result').classList.remove('scanning');
+        }
+
+        // Visual feedback helper
+        function showFeedback(message, color, bgColor) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.textContent = message;
+            resultDiv.style.color = color;
+            resultDiv.style.backgroundColor = bgColor;
+        }
+    </script>
+</body>
+</html>
