@@ -129,60 +129,109 @@
         // Configuration - REPLACE WITH YOUR VALUES
         const API_URL = 'https://script.google.com/macros/s/AKfycbyo3gI7lK8emIfSp1b7Yrtz0EfnKpvheyMqLOgYzQ14jHKGXwc0Vn3pz_sAn_pZqeH17Q/exec';
         const SCANNER_READERS = ['ean_reader', 'upc_reader', 'code_128_reader'];
-        const SCAN_COOLDOWN = 1000; // 1 second between scans
+        const SCAN_COOLDOWN = 1000;
 
         let scannerActive = false;
         let lastScanTimestamp = 0;
+        let quaggaInitialized = false;
 
-        // Initialize barcode scanner
+        // ================== IMPROVED SCANNER FUNCTIONS ================== //
+        
         function initScanner() {
+            // Clear previous instances
+            if(quaggaInitialized) {
+                Quagga.stop();
+                const videoElement = document.querySelector('#camera-preview');
+                if(videoElement.srcObject) {
+                    videoElement.srcObject.getTracks().forEach(track => track.stop());
+                }
+            }
+
+            const constraints = {
+                facingMode: "environment",
+                advanced: [
+                    { facingMode: "environment" },
+                    { focusMode: "continuous" }
+                ]
+            };
+
+            // Fallback for devices without focusMode support
+            if(!navigator.mediaDevices.getSupportedConstraints().focusMode) {
+                delete constraints.advanced;
+            }
+
             Quagga.init({
                 inputStream: {
                     name: "Live",
                     type: "LiveStream",
                     target: document.querySelector('#camera-preview'),
-                    constraints: {
-                        facingMode: "environment",
-                        focusMode: "continuous"
-                    },
+                    constraints: constraints,
                     area: {
-                        top: "25%",
-                        right: "25%",
-                        left: "25%",
-                        bottom: "25%"
+                        top: "15%",
+                        right: "15%",
+                        left: "15%",
+                        bottom: "15%"
                     }
                 },
                 decoder: {
                     readers: SCANNER_READERS,
                     debug: {
-                        drawBoundingBox: true,
+                        drawBoundingBox: false,
                         showFrequency: false,
-                        drawScanline: true,
-                        showPattern: true
+                        drawScanline: false
                     }
                 },
                 locator: {
-                    patchSize: "medium",
-                    halfSample: true
-                }
+                    patchSize: "large",
+                    halfSample: false
+                },
+                numOfWorkers: 2
             }, function(err) {
                 if (err) {
                     handleScannerError(err);
                     return;
                 }
+                quaggaInitialized = true;
                 Quagga.start();
                 document.getElementById('result').classList.add('scanning');
+                
+                // Camera feed timeout
+                setTimeout(() => {
+                    const videoElement = document.querySelector('#camera-preview');
+                    if(!videoElement.srcObject) {
+                        handleScannerError(new Error('Camera feed not loading'));
+                    }
+                }, 5000);
             });
         }
 
-        // Handle scanner errors
         function handleScannerError(err) {
             console.error('Scanner Error:', err);
-            alert(`Scanner Error: ${err.message || 'Check camera permissions'}`);
+            showFeedback(`❌ Error: ${err.message || 'Check camera permissions'}`, '#c0392b', '#fdedec');
             resetScannerControls();
+            
+            try {
+                Quagga.stop();
+                const videoElement = document.querySelector('#camera-preview');
+                if(videoElement.srcObject) {
+                    videoElement.srcObject.getTracks().forEach(track => track.stop());
+                }
+            } catch(cleanupErr) {
+                console.log('Cleanup error:', cleanupErr);
+            }
+            quaggaInitialized = false;
         }
 
-        // Handle detected barcodes
+        function resetScannerControls() {
+            scannerActive = false;
+            document.getElementById('scanner-container').style.display = 'none';
+            document.getElementById('start-scanner').disabled = false;
+            document.getElementById('stop-scanner').disabled = true;
+            document.getElementById('result').classList.remove('scanning');
+        }
+
+        // ================== BARCODE HANDLING FUNCTIONS ================== //
+        
         Quagga.onDetected(function(result) {
             if (!scannerActive) return;
             
@@ -196,7 +245,6 @@
             }
         });
 
-        // Barcode validation function
         async function checkBarcode(barcode) {
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = '⌛ Checking...';
@@ -207,7 +255,7 @@
                 const response = await fetch(`${API_URL}?barcode=${encodeURIComponent(barcode)}`);
                 
                 if (!response.ok) {
-                    throw new Error(`Server Error: ${response.status} ${response.statusText}`);
+                    throw new Error(`Server error: ${response.status}`);
                 }
 
                 const data = await response.json();
@@ -217,8 +265,8 @@
                 }
 
                 resultDiv.textContent = data.exists 
-                    ? "⚠️ Product already in database!" 
-                    : "✅ New product - Collect data!";
+                    ? "⚠️ Product already exists!" 
+                    : "✅ New product!";
                 
                 resultDiv.style.color = data.exists ? '#c0392b' : '#27ae60';
                 resultDiv.style.backgroundColor = data.exists ? '#fdedec' : '#e8f6f3';
@@ -231,17 +279,17 @@
             }
         }
 
-        // Manual check handler
         function checkManualBarcode() {
             const barcode = document.getElementById('manual-barcode').value.trim();
             if (barcode.length < 12) {
-                showFeedback('⚠️ Barcode too short!', '#f1c40f', '#fcf8e3');
+                showFeedback('⚠️ Minimum 12 digits required!', '#f1c40f', '#fcf8e3');
                 return;
             }
             checkBarcode(barcode);
         }
 
-        // Scanner controls
+        // ================== EVENT LISTENERS ================== //
+        
         document.getElementById('start-scanner').addEventListener('click', function() {
             scannerActive = true;
             document.getElementById('scanner-container').style.display = 'block';
@@ -252,19 +300,11 @@
 
         document.getElementById('stop-scanner').addEventListener('click', function() {
             scannerActive = false;
-            Quagga.stop();
             resetScannerControls();
         });
 
-        // Reset scanner UI
-        function resetScannerControls() {
-            document.getElementById('scanner-container').style.display = 'none';
-            document.getElementById('start-scanner').disabled = false;
-            document.getElementById('stop-scanner').disabled = true;
-            document.getElementById('result').classList.remove('scanning');
-        }
-
-        // Visual feedback helper
+        // ================== HELPER FUNCTIONS ================== //
+        
         function showFeedback(message, color, bgColor) {
             const resultDiv = document.getElementById('result');
             resultDiv.textContent = message;
