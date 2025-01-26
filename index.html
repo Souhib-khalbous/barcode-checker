@@ -149,7 +149,6 @@
             </svg>
             Product Validation System
         </h1>
-
         <div class="scanner-controls">
             <button id="start-scanner">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
@@ -182,12 +181,11 @@
     </div>
 
     <script>
-        // ================== CONFIGURATION ================== //
+        // Configuration for the API URL
         const CONFIG = {
             API_URL: 'https://script.google.com/macros/s/AKfycbzBs5BgadIJsEReTgBwYKRAuGcVscWedCTHrEtYjQy4ycKn90C_DwAoK_195DIi4SBMDQ/exec'
         };
-
-                // ================== SCANNER MANAGEMENT ================== //
+        // ================== SCANNER MANAGEMENT ================== //
         async function initializeScanner() {
             try {
                 if(scannerState.initialized) {
@@ -208,15 +206,12 @@
                         target: document.querySelector('#camera-preview'),
                         constraints: {
                             deviceId: scannerState.stream.getVideoTracks()[0].getSettings().deviceId
-                        },
-                        area: { top: "20%", right: "20%", left: "20%", bottom: "20%" }
+                        }
                     },
                     decoder: {
                         readers: ['ean_reader', 'upc_reader', 'code_128_reader'],
                         debug: { drawBoundingBox: false }
-                    },
-                    locator: { patchSize: "medium" },
-                    numOfWorkers: 4
+                    }
                 }, handleScannerInit);
 
                 Quagga.onDetected(handleBarcodeDetection);
@@ -302,4 +297,3 @@
     </script>
 </body>
 </html>
-
