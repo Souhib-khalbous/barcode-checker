@@ -183,7 +183,7 @@
     <script>
         // Configuration for the API URL
         const CONFIG = {
-            API_URL: 'https://script.google.com/macros/s/AKfycbzBs5BgadIJsEReTgBwYKRAuGcVscWedCTHrEtYjQy4ycKn90C_DwAoK_195DIi4SBMDQ/exec'
+            API_URL: 'https://script.google.com/macros/s/AKfycbwW7RwhIOPCkREY1F3RoAyOupVKzQSYJl58m7rgQXe3_Zp22wfOXtX2EZdG5WU-m-sp8A/exec'
         };
         // ================== SCANNER MANAGEMENT ================== //
         async function initializeScanner() {
@@ -247,17 +247,17 @@
             const resultDiv = document.getElementById('result');
             resultDiv.innerHTML = `<div class="scanning-status" style="padding: 1rem">🔍 Verifying ${barcode}</div>`;
             try {
-                const response = await fetch(`${CONFIG.API_URL}?barcode=${encodeURIComponent(barcode)}`);
-                const data = await response.json();
-                resultDiv.innerHTML = `
+                    const response = await fetch(`${CONFIG.API_URL}?barcode=${encodeURIComponent(barcode)}`);
+                    const data = await response.json();
+                        resultDiv.innerHTML = `
                     <div style="background: ${data.status === 'SUCCESS' ? '#d4edda' : '#f8d7da'}; 
-                                color: ${data.status === 'SUCCESS' ? '#155724' : '#721c24'};
-                                padding: 1rem;
-                                border-radius: 8px">
-                        ${data.status === 'SUCCESS' ? '✅ Barcode exists' : '⚠️ Barcode does not exist'}
-                    </div>
-                `;
-            } catch (error) {
+                    color: ${data.status === 'SUCCESS' ? '#155724' : '#721c24'};
+                    padding: 1rem;
+                    border-radius: 8px">
+            ${data.status === 'SUCCESS' ? '✅ Barcode exists' : '⚠️ Barcode does not exist'}
+        </div>
+            `;
+        } catch (error) {
                 resultDiv.innerHTML = `<div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px">⚠️ Error checking barcode: ${error.message}</div>`;
                 console.error('Error verifying barcode:', error);
             }
