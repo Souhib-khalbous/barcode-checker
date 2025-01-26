@@ -166,10 +166,9 @@
 
         <div class="manual-input">
             <input type="text" id="manual-barcode" 
-                   placeholder="Enter 13-digit barcode" 
+                   placeholder="Enter barcode number" 
                    inputmode="numeric"
                    pattern="\d*"
-                   maxlength="13"
                    oninput="this.value = this.value.replace(/[^0-9]/g, '')">
             <button id="check-manual">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
@@ -181,72 +180,64 @@
     </div>
 
     <script>
-        // Add scanner state initialization (MISSING IN YOUR CODE)
-            const scannerState = { 
-                initialized: false, 
-                active: false, 
-                lastScan: 0, 
-                stream: null 
-            };
-        
-        // Configuration for the API URL
-        // Updated configuration with scanner cooldown
+        const scannerState = { 
+            initialized: false, 
+            active: false, 
+            lastScan: 0, 
+            stream: null 
+        };
+
         const CONFIG = {
             API_URL: 'https://script.google.com/macros/s/AKfycbwW7RwhIOPCkREY1F3RoAyOupVKzQSYJl58m7rgQXe3_Zp22wfOXtX2EZdG5WU-m-sp8A/exec',
-            SCANNER: { cooldown: 1000 } // Add cooldown configuration
+            SCANNER: { cooldown: 1000 }
         };
-        // ================== SCANNER MANAGEMENT ================== //
-        // ================== UPDATED SCANNER MANAGEMENT ================== //
-    async function initializeScanner() {
-        try {
-            // Clear existing scanner if any
-            if (scannerState.initialized) {
-                Quagga.stop();
-                scannerState.stream?.getTracks().forEach(track => track.stop());
-            }
 
-            // Get camera stream with explicit video constraints
-            scannerState.stream = await navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: "environment",
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
+        async function initializeScanner() {
+            try {
+                if (scannerState.initialized) {
+                    Quagga.stop();
+                    scannerState.stream?.getTracks().forEach(track => track.stop());
                 }
-            });
 
-            // Connect stream to video element
-            const videoElement = document.getElementById('camera-preview');
-            videoElement.srcObject = scannerState.stream;
-            await videoElement.play();
-
-            // Initialize Quagga with proper configuration
-            Quagga.init({
-                inputStream: {
-                    name: "Live",
-                    type: "LiveStream",
-                    target: videoElement,
-                    constraints: {
+                scannerState.stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
                         facingMode: "environment",
-                        deviceId: scannerState.stream.getVideoTracks()[0].getSettings().deviceId
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
                     }
-                },
-                decoder: {
-                    readers: ['ean_reader', 'upc_reader', 'code_128_reader'],
-                    debug: { drawBoundingBox: false }
-                },
-                locator: {
-                    patchSize: "medium",
-                    halfSample: true
-                },
-                locate: true
-            }, handleScannerInit);
+                });
 
-            Quagga.onDetected(handleBarcodeDetection);
+                const videoElement = document.getElementById('camera-preview');
+                videoElement.srcObject = scannerState.stream;
+                await videoElement.play();
 
-        } catch (error) {
-            handleScannerError(error);
+                Quagga.init({
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream",
+                        target: videoElement,
+                        constraints: {
+                            facingMode: "environment",
+                            deviceId: scannerState.stream.getVideoTracks()[0].getSettings().deviceId
+                        }
+                    },
+                    decoder: {
+                        readers: ['ean_reader', 'upc_reader', 'code_128_reader'],
+                        debug: { drawBoundingBox: false }
+                    },
+                    locator: {
+                        patchSize: "medium",
+                        halfSample: true
+                    },
+                    locate: true
+                }, handleScannerInit);
+
+                Quagga.onDetected(handleBarcodeDetection);
+
+            } catch (error) {
+                handleScannerError(error);
+            }
         }
-    }
 
         function handleScannerInit(error) {
             if (error) {
@@ -270,54 +261,50 @@
             console.error('Scanner Error:', error);
         }
 
-        // ================== API COMMUNICATION ================== //
-           // ================== UPDATED VERIFY FUNCTION ================== //
-    async function verifyBarcode(barcode) {
-        const resultDiv = document.getElementById('result');
-        resultDiv.innerHTML = `<div class="scanning-status" style="padding: 1rem">🔍 Verifying ${barcode}</div>`;
-        
-        try {
-            const response = await fetch(`${CONFIG.API_URL}?barcode=${encodeURIComponent(barcode)}`);
-            const data = await response.json();
+        async function verifyBarcode(barcode) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = `<div class="scanning-status" style="padding: 1rem">🔍 Verifying ${barcode}</div>`;
             
-            // Handle all possible statuses from backend
-            let message, bgColor, textColor;
-            switch(data.status) {
-                case 'SUCCESS':
-                    message = '✅ Barcode exists';
-                    bgColor = '#d4edda';
-                    textColor = '#155724';
-                    break;
-                case 'FAILED':
-                    message = '⚠️ Barcode does not exist';
-                    bgColor = '#f8d7da';
-                    textColor = '#721c24';
-                    break;
-                default:
-                    message = '⚠️ Verification error';
-                    bgColor = '#fff3cd';
-                    textColor = '#856404';
+            try {
+                const response = await fetch(`${CONFIG.API_URL}?barcode=${encodeURIComponent(barcode)}`);
+                const data = await response.json();
+                
+                let message, bgColor, textColor;
+                switch(data.status) {
+                    case 'SUCCESS':
+                        message = '✅ Barcode exists';
+                        bgColor = '#d4edda';
+                        textColor = '#155724';
+                        break;
+                    case 'FAILED':
+                        message = '⚠️ Barcode does not exist';
+                        bgColor = '#f8d7da';
+                        textColor = '#721c24';
+                        break;
+                    default:
+                        message = '⚠️ Verification error';
+                        bgColor = '#fff3cd';
+                        textColor = '#856404';
+                }
+
+                resultDiv.innerHTML = `
+                    <div style="background: ${bgColor}; 
+                                color: ${textColor};
+                                padding: 1rem;
+                                border-radius: 8px">
+                        ${message}
+                    </div>
+                `;
+            } catch (error) {
+                resultDiv.innerHTML = `
+                    <div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px">
+                        ⚠️ Error checking barcode: ${error.message}
+                    </div>
+                `;
+                console.error('Verification error:', error);
             }
-
-            resultDiv.innerHTML = `
-                <div style="background: ${bgColor}; 
-                            color: ${textColor};
-                            padding: 1rem;
-                            border-radius: 8px">
-                    ${message}
-                </div>
-            `;
-        } catch (error) {
-            resultDiv.innerHTML = `
-                <div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px">
-                    ⚠️ Error checking barcode: ${error.message}
-                </div>
-            `;
-            console.error('Verification error:', error);
         }
-    }
 
-        // ================== EVENT HANDLERS ================== //
         document.getElementById('start-scanner').addEventListener('click', async () => {
             scannerState.active = true;
             document.getElementById('scanner-container').style.display = 'block';
@@ -338,12 +325,12 @@
 
         document.getElementById('check-manual').addEventListener('click', () => {
             const barcode = document.getElementById('manual-barcode').value.trim();
-            if (/^\d{12,13}$/.test(barcode)) {
+            if (/^\d+$/.test(barcode)) {
                 verifyBarcode(barcode);
             } else {
                 document.getElementById('result').innerHTML = `
                     <div style="background: #fff3cd; color: #856404; padding: 1rem; border-radius: 8px">
-                        Invalid barcode format - Must be 12/13 digits
+                        Invalid format - Numbers only
                     </div>
                 `;
             }
