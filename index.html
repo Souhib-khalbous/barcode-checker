@@ -196,39 +196,57 @@
             SCANNER: { cooldown: 1000 } // Add cooldown configuration
         };
         // ================== SCANNER MANAGEMENT ================== //
-        async function initializeScanner() {
-            try {
-                if(scannerState.initialized) {
-                    Quagga.stop();
-                    scannerState.stream?.getTracks().forEach(track => track.stop());
-                }
-                scannerState.stream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: "environment",
-                        focusMode: "continuous"
-                    }
-                });
-
-                Quagga.init({
-                    inputStream: {
-                        name: "Live",
-                        type: "LiveStream",
-                        target: document.querySelector('#camera-preview'),
-                        constraints: {
-                            deviceId: scannerState.stream.getVideoTracks()[0].getSettings().deviceId
-                        }
-                    },
-                    decoder: {
-                        readers: ['ean_reader', 'upc_reader', 'code_128_reader'],
-                        debug: { drawBoundingBox: false }
-                    }
-                }, handleScannerInit);
-
-                Quagga.onDetected(handleBarcodeDetection);
-            } catch (error) {
-                handleScannerError(error);
+        // ================== UPDATED SCANNER MANAGEMENT ================== //
+    async function initializeScanner() {
+        try {
+            // Clear existing scanner if any
+            if (scannerState.initialized) {
+                Quagga.stop();
+                scannerState.stream?.getTracks().forEach(track => track.stop());
             }
+
+            // Get camera stream with explicit video constraints
+            scannerState.stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: "environment",
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                }
+            });
+
+            // Connect stream to video element
+            const videoElement = document.getElementById('camera-preview');
+            videoElement.srcObject = scannerState.stream;
+            await videoElement.play();
+
+            // Initialize Quagga with proper configuration
+            Quagga.init({
+                inputStream: {
+                    name: "Live",
+                    type: "LiveStream",
+                    target: videoElement,
+                    constraints: {
+                        facingMode: "environment",
+                        deviceId: scannerState.stream.getVideoTracks()[0].getSettings().deviceId
+                    }
+                },
+                decoder: {
+                    readers: ['ean_reader', 'upc_reader', 'code_128_reader'],
+                    debug: { drawBoundingBox: false }
+                },
+                locator: {
+                    patchSize: "medium",
+                    halfSample: true
+                },
+                locate: true
+            }, handleScannerInit);
+
+            Quagga.onDetected(handleBarcodeDetection);
+
+        } catch (error) {
+            handleScannerError(error);
         }
+    }
 
         function handleScannerInit(error) {
             if (error) {
