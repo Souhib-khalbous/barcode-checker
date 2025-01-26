@@ -181,9 +181,19 @@
     </div>
 
     <script>
+        // Add scanner state initialization (MISSING IN YOUR CODE)
+            const scannerState = { 
+                initialized: false, 
+                active: false, 
+                lastScan: 0, 
+                stream: null 
+            };
+        
         // Configuration for the API URL
+        // Updated configuration with scanner cooldown
         const CONFIG = {
-            API_URL: 'https://script.google.com/macros/s/AKfycbwW7RwhIOPCkREY1F3RoAyOupVKzQSYJl58m7rgQXe3_Zp22wfOXtX2EZdG5WU-m-sp8A/exec'
+            API_URL: 'https://script.google.com/macros/s/AKfycbwW7RwhIOPCkREY1F3RoAyOupVKzQSYJl58m7rgQXe3_Zp22wfOXtX2EZdG5WU-m-sp8A/exec',
+            SCANNER: { cooldown: 1000 } // Add cooldown configuration
         };
         // ================== SCANNER MANAGEMENT ================== //
         async function initializeScanner() {
@@ -243,25 +253,51 @@
         }
 
         // ================== API COMMUNICATION ================== //
-        async function verifyBarcode(barcode) {
-            const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = `<div class="scanning-status" style="padding: 1rem">🔍 Verifying ${barcode}</div>`;
-            try {
-                    const response = await fetch(`${CONFIG.API_URL}?barcode=${encodeURIComponent(barcode)}`);
-                    const data = await response.json();
-                        resultDiv.innerHTML = `
-                    <div style="background: ${data.status === 'SUCCESS' ? '#d4edda' : '#f8d7da'}; 
-                    color: ${data.status === 'SUCCESS' ? '#155724' : '#721c24'};
-                    padding: 1rem;
-                    border-radius: 8px">
-            ${data.status === 'SUCCESS' ? '✅ Barcode exists' : '⚠️ Barcode does not exist'}
-        </div>
+           // ================== UPDATED VERIFY FUNCTION ================== //
+    async function verifyBarcode(barcode) {
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = `<div class="scanning-status" style="padding: 1rem">🔍 Verifying ${barcode}</div>`;
+        
+        try {
+            const response = await fetch(`${CONFIG.API_URL}?barcode=${encodeURIComponent(barcode)}`);
+            const data = await response.json();
+            
+            // Handle all possible statuses from backend
+            let message, bgColor, textColor;
+            switch(data.status) {
+                case 'SUCCESS':
+                    message = '✅ Barcode exists';
+                    bgColor = '#d4edda';
+                    textColor = '#155724';
+                    break;
+                case 'FAILED':
+                    message = '⚠️ Barcode does not exist';
+                    bgColor = '#f8d7da';
+                    textColor = '#721c24';
+                    break;
+                default:
+                    message = '⚠️ Verification error';
+                    bgColor = '#fff3cd';
+                    textColor = '#856404';
+            }
+
+            resultDiv.innerHTML = `
+                <div style="background: ${bgColor}; 
+                            color: ${textColor};
+                            padding: 1rem;
+                            border-radius: 8px">
+                    ${message}
+                </div>
             `;
         } catch (error) {
-                resultDiv.innerHTML = `<div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px">⚠️ Error checking barcode: ${error.message}</div>`;
-                console.error('Error verifying barcode:', error);
-            }
+            resultDiv.innerHTML = `
+                <div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px">
+                    ⚠️ Error checking barcode: ${error.message}
+                </div>
+            `;
+            console.error('Verification error:', error);
         }
+    }
 
         // ================== EVENT HANDLERS ================== //
         document.getElementById('start-scanner').addEventListener('click', async () => {
