@@ -6,18 +6,159 @@
     <title>Enterprise Barcode System | Preventing Overlap</title>
     <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
     <style>
-        /* Styles unchanged, insert your existing styles here */
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --background: #f8f9fa;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 20px;
+            background: var(--background);
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            border: 1px solid #e0e0e0;
+        }
+
+        h1 {
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .scanner-controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 2rem;
+        }
+
+        button {
+            padding: 0.8rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        #start-scanner {
+            background: var(--secondary);
+            color: white;
+        }
+
+        #stop-scanner {
+            background: var(--danger);
+            color: white;
+        }
+
+        #camera-preview {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border: 3px solid var(--secondary);
+            border-radius: 12px;
+            margin: 2rem auto;
+            display: block;
+            background: black;
+        }
+
+        .manual-input {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+
+        #manual-barcode {
+            padding: 0.8rem;
+            width: 300px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s ease;
+        }
+
+        #manual-barcode:focus {
+            outline: none;
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        #check-manual {
+            background: var(--success);
+            color: white;
+        }
+
+        #result {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+            text-align: center;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+
+        .scanning-status {
+            animation: pulse 1.5s infinite;
+            background: rgba(52, 152, 219, 0.1);
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 1.5rem;
+            }
+            
+            .manual-input {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>
-            <!-- SVG and title unchanged -->
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-camera">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+            </svg>
             Product Validation System
         </h1>
-        
+
         <div class="scanner-controls">
-            <!-- Buttons unchanged -->
+            <button id="start-scanner">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                Start Scanner
+            </button>
+            <button id="stop-scanner" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                Stop Scanner
+            </button>
         </div>
 
         <div id="scanner-container" style="display: none;">
@@ -25,7 +166,16 @@
         </div>
 
         <div class="manual-input">
-            <!-- Manual input unchanged -->
+            <input type="text" id="manual-barcode" 
+                   placeholder="Enter 13-digit barcode" 
+                   inputmode="numeric"
+                   pattern="\d*"
+                   maxlength="13"
+                   oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+            <button id="check-manual">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                Verify Barcode
+            </button>
         </div>
 
         <div id="result"></div>
@@ -34,24 +184,10 @@
     <script>
         // ================== CONFIGURATION ================== //
         const CONFIG = {
-            API_URL: 'https://script.google.com/macros/s/AKfycbzBs5BgadIJsEReTgBwYKRAuGcVscWedCTHrEtYjQy4ycKn90C_DwAoK_195DIi4SBMDQ/exec',
-            SCANNER: {
-                readers: ['ean_reader', 'upc_reader', 'code_128_reader'],
-                scanArea: { top: "20%", right: "20%", left: "20%", bottom: "20%" },
-                cooldown: 1000,
-                workers: 4
-            }
+            API_URL: 'https://script.google.com/macros/s/AKfycbzBs5BgadIJsEReTgBwYKRAuGcVscWedCTHrEtYjQy4ycKn90C_DwAoK_195DIi4SBMDQ/exec'
         };
 
-        // ================== STATE MANAGEMENT ================== //
-        let scannerState = {
-            active: false,
-            lastScan: 0,
-            initialized: false,
-            stream: null
-        };
-
-        // ================== SCANNER MANAGEMENT ================== //
+                // ================== SCANNER MANAGEMENT ================== //
         async function initializeScanner() {
             try {
                 if(scannerState.initialized) {
@@ -73,14 +209,14 @@
                         constraints: {
                             deviceId: scannerState.stream.getVideoTracks()[0].getSettings().deviceId
                         },
-                        area: CONFIG.SCANNER.scanArea
+                        area: { top: "20%", right: "20%", left: "20%", bottom: "20%" }
                     },
                     decoder: {
-                        readers: CONFIG.SCANNER.readers,
+                        readers: ['ean_reader', 'upc_reader', 'code_128_reader'],
                         debug: { drawBoundingBox: false }
                     },
                     locator: { patchSize: "medium" },
-                    numOfWorkers: CONFIG.SCANNER.workers
+                    numOfWorkers: 4
                 }, handleScannerInit);
 
                 Quagga.onDetected(handleBarcodeDetection);
@@ -106,6 +242,11 @@
             verifyBarcode(barcode);
         }
 
+        function handleScannerError(error) {
+            document.getElementById('result').innerHTML = `<div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px">⚠️ Error initializing scanner: ${error.message}</div>`;
+            console.error('Scanner Error:', error);
+        }
+
         // ================== API COMMUNICATION ================== //
         async function verifyBarcode(barcode) {
             const resultDiv = document.getElementById('result');
@@ -122,7 +263,7 @@
                     </div>
                 `;
             } catch (error) {
-                resultDiv.innerHTML = `<div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px">⚠️ Error checking barcode</div>`;
+                resultDiv.innerHTML = `<div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px">⚠️ Error checking barcode: ${error.message}</div>`;
                 console.error('Error verifying barcode:', error);
             }
         }
@@ -148,8 +289,17 @@
 
         document.getElementById('check-manual').addEventListener('click', () => {
             const barcode = document.getElementById('manual-barcode').value.trim();
-            verifyBarcode(barcode);
+            if (/^\d{12,13}$/.test(barcode)) {
+                verifyBarcode(barcode);
+            } else {
+                document.getElementById('result').innerHTML = `
+                    <div style="background: #fff3cd; color: #856404; padding: 1rem; border-radius: 8px">
+                        Invalid barcode format - Must be 12/13 digits
+                    </div>
+                `;
+            }
         });
     </script>
 </body>
 </html>
+
