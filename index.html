@@ -51,7 +51,7 @@
             gap: 0.5rem;
         }
 
-        .scanner-controls, .manual-input, .upload-input {
+        .scanner-controls {
             display: flex;
             gap: 1rem;
             justify-content: center;
@@ -91,7 +91,14 @@
             background: black;
         }
 
-        #manual-barcode, #barcode-image {
+        .manual-input {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin: 2rem 0;
+        }
+
+        #manual-barcode {
             padding: 0.8rem;
             width: 300px;
             border: 2px solid #ddd;
@@ -100,13 +107,13 @@
             transition: border-color 0.2s ease;
         }
 
-        #manual-barcode:focus, #barcode-image:focus {
+        #manual-barcode:focus {
             outline: none;
             border-color: var(--secondary);
             box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
         }
 
-        #check-manual, #upload-button {
+        #check-manual {
             background: var(--success);
             color: white;
         }
@@ -120,23 +127,23 @@
             transition: all 0.2s ease;
         }
 
-        .loading {
-            display: inline-block;
-            width: 24px;
-            height: 24px;
-            border: 4px solid var(--secondary);
-            border-top: 4px solid transparent;
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: auto;
+        .scanning-status {
+            animation: pulse 1.5s infinite;
+            background: rgba(52, 152, 219, 0.1);
         }
 
-        @keyframes spin {
-            to { transform: rotate(360deg); }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
         }
 
         @media (max-width: 640px) {
-            .manual-input, .upload-input {
+            .container {
+                padding: 1.5rem;
+            }
+            
+            .manual-input {
                 flex-direction: column;
                 align-items: center;
             }
@@ -152,108 +159,191 @@
             </svg>
             Product Validation System
         </h1>
+        <div class="scanner-controls">
+            <button id="start-scanner">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                Start Scanner
+            </button>
+            <button id="stop-scanner" disabled>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line></svg>
+                Stop Scanner
+            </button>
+        </div>
+
+        <div id="scanner-container" style="display: none;">
+            <video id="camera-preview"></video>
+        </div>
 
         <div class="manual-input">
-            <input type="text" id="manual-barcode" placeholder="Enter barcode number">
-            <button id="check-manual">Verify Barcode</button>
-        </div>
-
-        <div class="upload-input">
-            <input type="file" id="barcode-image" accept="image/*">
-            <button id="upload-button">Upload & Verify</button>
-        </div>
-
-        <div class="scanner-controls">
-            <button id="start-scanner">Start Scanner</button>
-            <button id="stop-scanner" disabled>Stop Scanner</button>
-        </div>
-
-        <div id="scanner-container">
-            <video id="camera-preview" autoplay></video>
+            <input type="text" id="manual-barcode" 
+                   placeholder="Enter barcode number" 
+                   inputmode="numeric"
+                   pattern="\d*"
+                   oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+            <button id="check-manual">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
+                Verify Barcode
+            </button>
         </div>
 
         <div id="result"></div>
     </div>
 
     <script>
-        const API_URL = 'https://script.google.com/macros/s/AKfycbwW7RwhIOPCkREY1F3RoAyOupVKzQSYJl58m7rgQXe3_Zp22wfOXtX2EZdG5WU-m-sp8A/exec';
+        const scannerState = { 
+            initialized: false, 
+            active: false, 
+            lastScan: 0, 
+            stream: null 
+        };
 
-        function showLoading() {
-            document.getElementById('result').innerHTML = '<div class="loading"></div>';
-        }
+        const CONFIG = {
+            API_URL: 'https://script.google.com/macros/s/AKfycbwW7RwhIOPCkREY1F3RoAyOupVKzQSYJl58m7rgQXe3_Zp22wfOXtX2EZdG5WU-m-sp8A/exec',
+            SCANNER: { cooldown: 1000 }
+        };
 
-        function verifyBarcode(barcode) {
-            const resultDiv = document.getElementById('result');
-            showLoading();
+        async function initializeScanner() {
+            try {
+                if (scannerState.initialized) {
+                    Quagga.stop();
+                    scannerState.stream?.getTracks().forEach(track => track.stop());
+                }
 
-            fetch(`${API_URL}?barcode=${barcode}`)
-                .then(response => response.json())
-                .then(data => {
-                    resultDiv.textContent = data.status === 'SUCCESS' ? '✅ Barcode exists' : '❌ Barcode does not exist';
-                })
-                .catch(error => {
-                    resultDiv.textContent = `Error: ${error.message}`;
-                });
-        }
-
-        document.getElementById('check-manual').addEventListener('click', () => {
-            const barcode = document.getElementById('manual-barcode').value.trim();
-            if (barcode) verifyBarcode(barcode);
-        });
-
-        document.getElementById('upload-button').addEventListener('click', () => {
-            const file = document.getElementById('barcode-image').files[0];
-            if (!file) return alert('Please upload an image.');
-
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                Quagga.decodeSingle({
-                    src: event.target.result,
-                    numOfWorkers: 0,
-                    decoder: { readers: ['ean_reader', 'upc_reader', 'code_128_reader'] }
-                }, function(result) {
-                    if (result && result.codeResult) {
-                        verifyBarcode(result.codeResult.code);
-                    } else {
-                        document.getElementById('result').textContent = '❌ No barcode detected.';
+                scannerState.stream = await navigator.mediaDevices.getUserMedia({
+                    video: {
+                        facingMode: "environment",
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
                     }
                 });
-            };
-            reader.readAsDataURL(file);
-        });
 
-        document.getElementById('start-scanner').addEventListener('click', () => {
-            document.getElementById('scanner-container').style.display = 'block';
-            Quagga.init({
-                inputStream: {
-                    name: 'Live',
-                    type: 'LiveStream',
-                    target: document.querySelector('#camera-preview'),
-                    constraints: { facingMode: 'environment' }
-                },
-                decoder: { readers: ['ean_reader', 'upc_reader', 'code_128_reader'] }
-            }, (err) => {
-                if (err) return console.error(err);
-                Quagga.start();
-            });
+                const videoElement = document.getElementById('camera-preview');
+                videoElement.srcObject = scannerState.stream;
+                await videoElement.play();
 
-            Quagga.onDetected((result) => {
-                if (result.codeResult && result.codeResult.code) {
-                    verifyBarcode(result.codeResult.code);
-                    Quagga.stop();
-                    document.getElementById('scanner-container').style.display = 'none';
+                Quagga.init({
+                    inputStream: {
+                        name: "Live",
+                        type: "LiveStream",
+                        target: videoElement,
+                        constraints: {
+                            facingMode: "environment",
+                            deviceId: scannerState.stream.getVideoTracks()[0].getSettings().deviceId
+                        }
+                    },
+                    decoder: {
+                        readers: ['ean_reader', 'upc_reader', 'code_128_reader'],
+                        debug: { drawBoundingBox: false }
+                    },
+                    locator: {
+                        patchSize: "medium",
+                        halfSample: true
+                    },
+                    locate: true
+                }, handleScannerInit);
+
+                Quagga.onDetected(handleBarcodeDetection);
+
+            } catch (error) {
+                handleScannerError(error);
+            }
+        }
+
+        function handleScannerInit(error) {
+            if (error) {
+                console.error('Scanner init error:', error);
+                return;
+            }
+            scannerState.initialized = true;
+            Quagga.start();
+            document.getElementById('result').classList.add('scanning-status');
+        }
+
+        function handleBarcodeDetection(result) {
+            if (!scannerState.active || Date.now() - scannerState.lastScan < CONFIG.SCANNER.cooldown) return;
+            scannerState.lastScan = Date.now();
+            const barcode = result.codeResult.code;
+            verifyBarcode(barcode);
+        }
+
+        function handleScannerError(error) {
+            document.getElementById('result').innerHTML = <div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px">⚠️ Error initializing scanner: ${error.message}</div>;
+            console.error('Scanner Error:', error);
+        }
+
+        async function verifyBarcode(barcode) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = <div class="scanning-status" style="padding: 1rem">🔍 Verifying ${barcode}</div>;
+            
+            try {
+                const response = await fetch(${CONFIG.API_URL}?barcode=${encodeURIComponent(barcode)});
+                const data = await response.json();
+                
+                let message, bgColor, textColor;
+                switch(data.status) {
+                    case 'SUCCESS':
+                        message = '✅ Barcode exists';
+                        bgColor = '#d4edda';
+                        textColor = '#155724';
+                        break;
+                    case 'FAILED':
+                        message = '⚠️ Barcode does not exist';
+                        bgColor = '#f8d7da';
+                        textColor = '#721c24';
+                        break;
+                    default:
+                        message = '⚠️ Verification error';
+                        bgColor = '#fff3cd';
+                        textColor = '#856404';
                 }
-            });
 
-            document.getElementById('start-scanner').disabled = true;
+                resultDiv.innerHTML = 
+                    <div style="background: ${bgColor}; 
+                                color: ${textColor};
+                                padding: 1rem;
+                                border-radius: 8px">
+                        ${message}
+                    </div>
+                ;
+            } catch (error) {
+                resultDiv.innerHTML = 
+                    <div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px">
+                        ⚠️ Error checking barcode: ${error.message}
+                    </div>
+                ;
+                console.error('Verification error:', error);
+            }
+        }
+
+        document.getElementById('start-scanner').addEventListener('click', async () => {
+            scannerState.active = true;
+            document.getElementById('scanner-container').style.display = 'block';
             document.getElementById('stop-scanner').disabled = false;
+            document.getElementById('start-scanner').disabled = true;
+            await initializeScanner();
         });
 
         document.getElementById('stop-scanner').addEventListener('click', () => {
+            scannerState.active = false;
             Quagga.stop();
+            scannerState.stream?.getTracks().forEach(track => track.stop());
             document.getElementById('scanner-container').style.display = 'none';
             document.getElementById('start-scanner').disabled = false;
             document.getElementById('stop-scanner').disabled = true;
+            document.getElementById('result').classList.remove('scanning-status');
+        });
+
+        document.getElementById('check-manual').addEventListener('click', () => {
+            const barcode = document.getElementById('manual-barcode').value.trim();
+            if (/^\d+$/.test(barcode)) {
+                verifyBarcode(barcode);
+            } else {
+                document.getElementById('result').innerHTML = 
+                    <div style="background: #fff3cd; color: #856404; padding: 1rem; border-radius: 8px">
+                        Invalid format - Numbers only
+                    </div>
+                ;
+            }
         });
     </script>
 </body>
