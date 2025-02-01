@@ -22,7 +22,6 @@
             --success: #27ae60;
             --danger: #c0392b;
             --background: #f8f9fa;
-            --highlight: #f1c40f;
         }
 
         body {
@@ -37,20 +36,19 @@
             background: white;
             padding: 2rem;
             border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
             border: 1px solid #e0e0e0;
-            transition: transform 0.3s ease;
-        }
-
-        .container:hover {
-            transform: scale(1.02);
         }
 
         h1 {
             color: var(--primary);
             text-align: center;
             margin-bottom: 2rem;
-            font-weight: 700;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
         }
 
         .scanner-controls, .manual-input, .upload-input {
@@ -65,12 +63,11 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: background 0.3s ease, transform 0.2s ease;
-            font-weight: 600;
-        }
-
-        button:hover {
-            transform: translateY(-2px);
+            transition: all 0.2s ease;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
         }
 
         #start-scanner {
@@ -83,9 +80,15 @@
             color: white;
         }
 
-        #check-manual, #upload-button {
-            background: var(--success);
-            color: white;
+        #camera-preview {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border: 3px solid var(--secondary);
+            border-radius: 12px;
+            margin: 2rem auto;
+            display: block;
+            background: black;
         }
 
         #manual-barcode, #barcode-image {
@@ -94,41 +97,34 @@
             border: 2px solid #ddd;
             border-radius: 8px;
             font-size: 1rem;
-            transition: border-color 0.3s ease;
+            transition: border-color 0.2s ease;
         }
 
         #manual-barcode:focus, #barcode-image:focus {
             outline: none;
             border-color: var(--secondary);
-            box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
         }
 
-        #scanner-container {
-            display: none;
-            margin: 2rem 0;
-        }
-
-        #camera-preview {
-            width: 100%;
-            max-width: 600px;
-            height: auto;
-            border: 3px solid var(--secondary);
-            border-radius: 12px;
+        #check-manual, #upload-button {
+            background: var(--success);
+            color: white;
         }
 
         #result {
             padding: 1rem;
             border-radius: 8px;
+            margin-top: 2rem;
             text-align: center;
             font-weight: 500;
-            transition: all 0.3s ease;
+            transition: all 0.2s ease;
         }
 
         .loading {
             display: inline-block;
             width: 24px;
             height: 24px;
-            border: 4px solid var(--highlight);
+            border: 4px solid var(--secondary);
             border-top: 4px solid transparent;
             border-radius: 50%;
             animation: spin 1s linear infinite;
@@ -149,7 +145,13 @@
 </head>
 <body>
     <div class="container">
-        <h1>Product Validation System</h1>
+        <h1>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-camera">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+            Product Validation System
+        </h1>
 
         <div class="manual-input">
             <input type="text" id="manual-barcode" placeholder="Enter barcode number">
