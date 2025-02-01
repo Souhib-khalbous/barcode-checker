@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Enterprise Barcode System | Preventing Overlap</title>
-
     <!-- Google Analytics -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-MBQ8JKYCGD"></script>
     <script>
@@ -13,7 +12,6 @@
         gtag('js', new Date());
         gtag('config', 'G-MBQ8JKYCGD');
     </script>
-
     <script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
     <style>
         :root {
@@ -142,7 +140,7 @@
             .container {
                 padding: 1.5rem;
             }
-            
+
             .manual-input {
                 flex-direction: column;
                 align-items: center;
@@ -267,18 +265,18 @@
         }
 
         function handleScannerError(error) {
-            document.getElementById('result').innerHTML = <div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px">⚠️ Error initializing scanner: ${error.message}</div>;
+            document.getElementById('result').innerHTML = `<div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px">⚠️ Error initializing scanner: ${error.message}</div>`;
             console.error('Scanner Error:', error);
         }
 
         async function verifyBarcode(barcode) {
             const resultDiv = document.getElementById('result');
-            resultDiv.innerHTML = <div class="scanning-status" style="padding: 1rem">🔍 Verifying ${barcode}</div>;
-            
+            resultDiv.innerHTML = `<div class="scanning-status" style="padding: 1rem">🔍 Verifying ${barcode}</div>`;
+
             try {
-                const response = await fetch(${CONFIG.API_URL}?barcode=${encodeURIComponent(barcode)});
+                const response = await fetch(`${CONFIG.API_URL}?barcode=${encodeURIComponent(barcode)}`);
                 const data = await response.json();
-                
+
                 let message, bgColor, textColor;
                 switch(data.status) {
                     case 'SUCCESS':
@@ -297,20 +295,20 @@
                         textColor = '#856404';
                 }
 
-                resultDiv.innerHTML = 
+                resultDiv.innerHTML = `
                     <div style="background: ${bgColor}; 
                                 color: ${textColor};
                                 padding: 1rem;
                                 border-radius: 8px">
                         ${message}
                     </div>
-                ;
+                `;
             } catch (error) {
-                resultDiv.innerHTML = 
+                resultDiv.innerHTML = `
                     <div style="background: #f8d7da; color: #721c24; padding: 1rem; border-radius: 8px">
                         ⚠️ Error checking barcode: ${error.message}
                     </div>
-                ;
+                `;
                 console.error('Verification error:', error);
             }
         }
@@ -338,11 +336,11 @@
             if (/^\d+$/.test(barcode)) {
                 verifyBarcode(barcode);
             } else {
-                document.getElementById('result').innerHTML = 
+                document.getElementById('result').innerHTML = `
                     <div style="background: #fff3cd; color: #856404; padding: 1rem; border-radius: 8px">
                         Invalid format - Numbers only
                     </div>
-                ;
+                `;
             }
         });
     </script>
