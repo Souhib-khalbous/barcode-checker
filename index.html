@@ -22,6 +22,7 @@
             --success: #27ae60;
             --danger: #c0392b;
             --background: #f8f9fa;
+            --highlight: #f1c40f;
         }
 
         body {
@@ -36,19 +37,20 @@
             background: white;
             padding: 2rem;
             border-radius: 12px;
-            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
             border: 1px solid #e0e0e0;
+            transition: transform 0.3s ease;
+        }
+
+        .container:hover {
+            transform: scale(1.02);
         }
 
         h1 {
             color: var(--primary);
             text-align: center;
             margin-bottom: 2rem;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 0.5rem;
+            font-weight: 700;
         }
 
         .scanner-controls, .manual-input, .upload-input {
@@ -63,11 +65,12 @@
             border: none;
             border-radius: 8px;
             cursor: pointer;
-            transition: all 0.2s ease;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
+            transition: background 0.3s ease, transform 0.2s ease;
+            font-weight: 600;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
         }
 
         #start-scanner {
@@ -80,15 +83,9 @@
             color: white;
         }
 
-        #camera-preview {
-            width: 100%;
-            max-width: 600px;
-            height: auto;
-            border: 3px solid var(--secondary);
-            border-radius: 12px;
-            margin: 2rem auto;
-            display: block;
-            background: black;
+        #check-manual, #upload-button {
+            background: var(--success);
+            color: white;
         }
 
         #manual-barcode, #barcode-image {
@@ -97,44 +94,52 @@
             border: 2px solid #ddd;
             border-radius: 8px;
             font-size: 1rem;
-            transition: border-color 0.2s ease;
+            transition: border-color 0.3s ease;
         }
 
         #manual-barcode:focus, #barcode-image:focus {
             outline: none;
             border-color: var(--secondary);
-            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+            box-shadow: 0 0 8px rgba(52, 152, 219, 0.5);
         }
 
-        #check-manual, #upload-button {
-            background: var(--success);
-            color: white;
+        #scanner-container {
+            display: none;
+            margin: 2rem 0;
+        }
+
+        #camera-preview {
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+            border: 3px solid var(--secondary);
+            border-radius: 12px;
         }
 
         #result {
             padding: 1rem;
             border-radius: 8px;
-            margin-top: 2rem;
             text-align: center;
             font-weight: 500;
-            transition: all 0.2s ease;
+            transition: all 0.3s ease;
         }
 
-        .scanning-status {
-            animation: pulse 1.5s infinite;
-            background: rgba(52, 152, 219, 0.1);
+        .loading {
+            display: inline-block;
+            width: 24px;
+            height: 24px;
+            border: 4px solid var(--highlight);
+            border-top: 4px solid transparent;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: auto;
         }
 
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.6; }
-            100% { opacity: 1; }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
 
         @media (max-width: 640px) {
-            .container {
-                padding: 1.5rem;
-            }
             .manual-input, .upload-input {
                 flex-direction: column;
                 align-items: center;
@@ -161,7 +166,7 @@
             <button id="stop-scanner" disabled>Stop Scanner</button>
         </div>
 
-        <div id="scanner-container" style="display: none;">
+        <div id="scanner-container">
             <video id="camera-preview" autoplay></video>
         </div>
 
@@ -170,6 +175,24 @@
 
     <script>
         const API_URL = 'https://script.google.com/macros/s/AKfycbwW7RwhIOPCkREY1F3RoAyOupVKzQSYJl58m7rgQXe3_Zp22wfOXtX2EZdG5WU-m-sp8A/exec';
+
+        function showLoading() {
+            document.getElementById('result').innerHTML = '<div class="loading"></div>';
+        }
+
+        function verifyBarcode(barcode) {
+            const resultDiv = document.getElementById('result');
+            showLoading();
+
+            fetch(`${API_URL}?barcode=${barcode}`)
+                .then(response => response.json())
+                .then(data => {
+                    resultDiv.textContent = data.status === 'SUCCESS' ? '✅ Barcode exists' : '❌ Barcode does not exist';
+                })
+                .catch(error => {
+                    resultDiv.textContent = `Error: ${error.message}`;
+                });
+        }
 
         document.getElementById('check-manual').addEventListener('click', () => {
             const barcode = document.getElementById('manual-barcode').value.trim();
@@ -230,20 +253,6 @@
             document.getElementById('start-scanner').disabled = false;
             document.getElementById('stop-scanner').disabled = true;
         });
-
-        function verifyBarcode(barcode) {
-            const resultDiv = document.getElementById('result');
-            resultDiv.textContent = `Verifying barcode: ${barcode}`;
-
-            fetch(`${API_URL}?barcode=${barcode}`)
-                .then(response => response.json())
-                .then(data => {
-                    resultDiv.textContent = data.status === 'SUCCESS' ? '✅ Barcode exists' : '❌ Barcode does not exist';
-                })
-                .catch(error => {
-                    resultDiv.textContent = `Error: ${error.message}`;
-                });
-        }
     </script>
 </body>
 </html>
